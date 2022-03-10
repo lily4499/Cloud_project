@@ -1,0 +1,93 @@
+Set up on AWS Console the whole infrastructure to Run an application
+    Set up VPC, we need to:
+        - create vpc with CIDR block < /16  : to enable services in AWS
+        - create couple subnets with block size between /16 netmask and /28 netmask(private and public)
+        - create Internet gateway : to connect VPC to internet
+        - Attach Internet Gateway to VPC
+        - create private route tables then add public route table : to specfy how packets are forwarded
+        - create NAT Gateway in public subnet with elastic IP allocation.
+        - Attach NAT GW to private route table (in route=destination:0.0.0.0/0, target: NATgw_ID)
+        - Associate private subnet to private route table (choose in subnet associations)
+        - Add IGW to public route table (in route=destination:0.0.0.0/0, target: Igw_ID)
+    create EC2 in public subnet (webserver)
+        - create EC2_security group with port 22(ssh) and 80(http) open to the world
+        - create roles in IAM for EC2 service with permissin "amazonS3FullAccess"
+    Create SNS: 
+        - Create new topic then copy ARN in publish; 
+        - create  Subscription(topic ARN=..., protocol=email, endpoint=konissil@gmail.com)
+    Create ELB to stay in front of the webserver instances.
+        - choose public subnets
+        - create ELB_security group with 80(http) open to the world
+        - configure health check
+        - add EC2 instance
+
+    Set up RDS
+        - create RDS_security group with port 3306 open to webserver only(webserver_group_ID)
+        - Launch MySQL with DB_name, username, password
+
+   Connect to EC2 webserver on local machine and run:
+        - sudo su -
+        - cd /var/www/html
+        - yum install php php-mysql mysql 
+        - wget https://wordpress.org/latest.tar.gz
+        - tar xvzf latest.tar.gz
+        - cd wordpress/
+        - mv  * /var/www/html
+        - cd ..
+        - chown -R apache:apache /var/www/html/*
+        - vi /etc/httpd/conf/httpd.conf (<Directory/> AllowOverride All)
+        - Wordpress page show up on the browser with IP_webserver
+    Connect to database from webserver
+        - mysql -h DB_endpoint -u username -p
+
+    Create route 53 with our domain name
+        - create hosted zone (put your domain name) 
+        - create record set without www (value: IP_webserver)
+        - create record set with www (name: www, value: IP_webserver)
+        - Copy name server from aws_record_set and paste in name server to your domain register company
+
+    Create AutoScaling to scale up and scale down ( horizontal) our instances accordingly. ( cpu over usage , instance terminate)
+        - create image (AMIs) from EC2 web_server
+        - create launch configuration from my AMIs, with IAM role: S3_full-access and webserver_SG
+        - click on create an ASG using this launch configuration
+            edit number of instances, choose all public subnets, create alarm, add notification (when terminate, fail to launch.)
+
+    Enable ACM certificate manager
+        - add your domain name (without and with *. at the beginning)
+        - select validation method (dns or email)
+        - in elb -> edit listeners -> https =443 ->http=80 
+        -> change SSL certificate -> choose certificate from ACM -> save
+
+    SET up CloudWatch
+        - create rule 
+            Event source 
+                -> event pattern -> service_name=EC2 
+                -> event_type: EC2 instance state-change notification
+                -> specific state= stopped  -> specific instance 
+            Targets
+                -> SNS to invoke when an event matches the even pattern
+                -> select topic
+        - Configure rule details
+            Rule definition
+                -> name= serverdown-alert
+                -> create rule
+
+    SeT UP OPENVPN
+        - Launch instance
+            - type openvpn in AWS Marketplace then select
+            - choose and configure instance (auto-assign public IP = disable)
+            - security group = ssh:22; custom tcp:943 & 443; custom UDP:1194
+        -Elastic IPs
+            - Allocate new address and get elastic IP number (public_ip)
+            - in allocate new address-> select address
+            -> action  -> clik on associate address-> choose openvpn instance then click on associate.
+        - Connect to openvpn_server with elastic_ip associate to it
+            - type ip on mobaxterm (uniq action)
+            - login as openvpnas
+
+        - 0n browser, type elastic_ip_associate_to_openvpn:943/admin/   then agree
+            - click on user permissiom (enter username and password)
+            - click on update running server
+            - download openvpn and y connect
+                - change id_http_SG (0.0.0.0/0) to id_openvpn_SG (sg-elb)
+                - change id_ssh_SG (0.0.0.0/0) to id_openvpn_SG (sg-xxxxxxxx)
