@@ -1,0 +1,201 @@
+VM MIGRATION TO AWS 
+    
+    CONVERT VM TO AN IMAGE 
+        VM migration supports the following image format for importing VMs 
+             Open Virtual Appliance (OVA) image format 
+             Stream-optimized ESX Virtual Machine Disk (VMDK) image format 
+             Fixed and Dynamic Virtual Hard Disk (VHD/VHDX) image format 
+        
+            a. Select the virtual machine and Export Appliance from the Settings tab. 
+            b. Provide an exportation location. 
+            c. After export, this VM becomes an image file 
+   
+   UPLOAD THE IMAGE TO AMAZON S3 
+        a. Create an S3 in the AWS console of unique name. Note. This name cannot be 
+        changed later. 
+        b. Upload your VM image file to your Amazon S3 bucket using the upload tool of 
+        your choice. 
+    
+    CREATE SERVICE ROLE 
+        VM migration requires a role to perform certain operations on your behalf. You MUST create a 
+        service role named vmimport with a trust relationship policy document that allows VM migration 
+        to assume the role, and you must attach an IAM policy to the role. 
+            3a. In the AWS console, identify the Identity and Access Management (IAM) service. 
+            3b. Create a service role in the dashboard 
+            3c. Choose the EC2 service 
+            3d. In “Attach permissions policies” choose “Create policy” 
+    i. Creating Policy 
+        Add the following policy to the JSON file: 
+        { 
+        "Version":"2012-10-17", 
+        "Statement":[ 
+        { 
+        "Effect": "Allow", 
+        "Action": [ 
+        "s3:GetBucketLocation", 
+        "s3:GetObject", 
+        "s3:ListBucket" 
+        ], 
+        "Resource": [ 
+        "arn:aws:s3:::disk-image-file-bucket",#S3 bucket name 
+        "arn:aws:s3:::disk-image-file-bucket/*"
+        ] 
+        }, 
+        { 
+        "Effect": "Allow", 
+        "Action": [ 
+        "s3:GetBucketLocation", 
+        "s3:GetObject", 
+        "s3:ListBucket", 
+        "s3:PutObject", 
+        "s3:GetBucketAcl"
+        ], 
+        "Resource": [ 
+        "arn:aws:s3:::export-bucket", 
+        "arn:aws:s3:::export-bucket/*"
+        ] 
+        }, 
+        { 
+        "Effect": "Allow", 
+        "Action": [ 
+        "ec2:ModifySnapshotAttribute", 
+        "ec2:CopySnapshot", 
+        "ec2:RegisterImage", 
+        "ec2:Describe*"
+        ], 
+        "Resource": "*"
+        } 
+        ] 
+        }
+    Review the policy, name the policy, and create the policy. 
+            3e. Back in the role, in “Attach Permissions Policies”, attach the newly created policy 
+        with appropriate name. 
+            3f. Name the role vmimport and validate the role creation 
+    
+    Required Permissions for IAM Users
+            4a. In the permissions, you want to go to “Attach existing policies directly”. 
+            4b. Give the user “AdministratorAccess” permission in “Set Permissions” and a new 
+            policy
+    i. Creating policy 
+        Add the following policy to the JSON file: 
+        { 
+        "Version": "2012-10-17", 
+        "Statement": [ 
+        { 
+        "Effect": "Allow", 
+        "Action": [ 
+        "s3:ListAllMyBuckets"
+        ], 
+        "Resource": "*"
+        }, 
+        { 
+        "Effect": "Allow", 
+        "Action": [ 
+        "s3:CreateBucket", 
+        "s3:DeleteBucket", 
+        "s3:DeleteObject", 
+        "s3:GetBucketLocation", 
+        "s3:GetObject", 
+        "s3:ListBucket", 
+        "s3:PutObject"
+        ], 
+        "Resource": ["arn:aws:s3::: disk-image-file-bucket
+        ","arn:aws:s3::: disk-image-file-bucket /*"] 
+        }, 
+        { 
+        "Effect": "Allow", 
+        "Action": [ 
+        "ec2:CancelConversionTask", 
+        "ec2:CancelExportTask", 
+        "ec2:CreateImage", 
+        "ec2:CreateInstanceExportTask", 
+        "ec2:CreateTags", 
+        "ec2:DeleteTags", 
+        "ec2:DescribeConversionTasks", 
+        "ec2:DescribeExportTasks", 
+        "ec2:DescribeExportImageTasks", 
+        "ec2:DescribeImages", 
+        "ec2:DescribeInstanceAttribute", 
+        "ec2:DescribeInstanceStatus", 
+        "ec2:DescribeInstances", 
+        "ec2:DescribeSnapshots", 
+        "ec2:DescribeTags", 
+        "ec2:ExportImage", 
+        "ec2:ImportInstance", 
+        "ec2:ImportVolume", 
+        "ec2:StartInstances", 
+        "ec2:StopInstances", 
+        "ec2:TerminateInstances", 
+        "ec2:ImportImage", 
+        "ec2:ImportSnapshot", 
+        "ec2:DescribeImportImageTasks", 
+        "ec2:DescribeImportSnapshotTasks", 
+        "ec2:CancelImportTask"
+        ], 
+        "Resource": "*"
+        } 
+        ] 
+        }
+   
+   Review the policy, name the policy, and create policy 
+        4c. Back in the user, in “Set permissions”, attach the newly created policy. 
+        4d. Review and validate the user and set permissions 
+        4e. After creating the user, download and save user credentials file containing the 
+        secret key and the access key. 
+            NOTE: 
+            If you are logged in as an AWS Identity and Access Management (IAM) user, you will need an 
+            “AdministratorAccess” permission if not granted one and the new policy above in your IAM 
+            policy to use for VM migration 
+    
+    CREATE CONTAINERS.JSON FILE 
+        When migrating your VM to AWS, the image is exported via a container feature into your AWS 
+        workspace. A container file is a JSON file (a file with the extension .json) 
+        that contains certain or all tags, triggers, and variables you want to migrate to your AWS. 
+        
+        In this file, you want to have the following piece of code: 
+        [ 
+        { 
+        "Description": "My Server", 
+        "Format": "ova" or “vmdk”, 
+        "UserBucket": { 
+        "S3Bucket": " disk-image-file-bucket ", 
+        "S3Key": "my-server-vm.ova" or "my-server-vm.vmdk"
+        } 
+        }] 
+        Save the file as a .json and note the path of the file on the used device. 
+    
+    Install and Configure AWS Command Line Interface (CLI) 
+        
+            Download and install AWS CLI 
+            
+        $ aws --version
+        aws-cli/2.0.47 Python/3.7.4 Linux/4.14.133-113.105.amzn2.x86_64 
+        botocore/2.0.0 
+        
+        5a. Run the command $aws configure in the command prompt. 
+        5b. It will prompt you to switch to an IAM user using its credentials. 
+        5c. In the downloaded and saved file from step 4e., acquire the credentials and input 
+        them in the command prompt as follows: 
+            AWS Access Key ID [None]: Access key from file 
+            AWS Secret Access Key [None]: Secret key from file 
+            Default region name [None]: S3 bucket region (Example: us￾east-1) 
+            Default output format [None]: json 
+                
+        5d. Use the following command in the command prompt to import your image 
+        aws ec2 import-image --description "My server VM" --disk￾containers "file://C:\import\containers.json" 
+                At this point, your VM is successfully being migrated to your AWS console as an Amazon 
+                Machine Image (AMI). 
+                Note. You can monitor the status of your task by running the following command: 
+        aws ec2 describe-import-image-tasks --import-task-ids import-ami-1234567890abcdef 
+                 If the status value says “active”, then the migration task is in progress and you can check 
+                the percentage completion as well 
+                 If the status value says “completed”, then the import task is completed, and the AMI is 
+                ready to use. 
+   
+   Launching a migrated VM as an EC2 instance 
+         Go to EC2 service 
+         Launch instance 
+         Step 1: “Choose AMI” 
+         Under “Quick Start” 
+         Choose “My AMI”. 
+         Choose your AMI imported and use it to launch your instance. 
