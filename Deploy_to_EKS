@@ -1,12 +1,7 @@
-    With the pom file inside the code in github, 
-    jenkins build artifact using maven and store it in his workspace.
-    With the dockerfile inside the code in github,that copy artifact from jenkins to Tomcat environment 
-    For jenkins to login to AWS, we install aws cli , create a user on AWS 
-    then configure his credential on jenkins
-    jenkins uses some plugins to build a docker image, login to AWS  and push it to ECR.
-    For jenkins to deploy to EKS, we install kubectl, eksctl, make jenkins 
-    the owner and group of the kube config file
-    
+    Prerequisite
+    - AWS console
+    - Jenkins server
+    - Jenkins console
     
    To do:
 
