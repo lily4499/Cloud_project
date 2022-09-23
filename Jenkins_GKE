@@ -1,0 +1,111 @@
+Integrade Jenkins with GKE ( so we can automate the deployment of our docker image in GKE right after creating the image)
+github  ===> Jenkins ===> docker images in GCR   ==>  Deploy to GKE 
+
+
+Prerequisites:
+Jenkins needs to be install on a linux base os
+
+
+1- Install docker
+
+yum install -y yum-utils device-mapper-persistent-data lvm2
+
+yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.rep
+
+ 
+
+yum install docker
+
+systemctl start docker
+
+systemctl enable docker
+
+ 
+
+2- Install kubectl
+
+   configure kubernetes repository
+
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+
+yum install -y  kubectl
+
+
+
+3- Install google SDK tool
+
+cat <<EOF> /etc/yum.repos.d/google-cloud-sdk.repo
+
+[google-cloud-sdk]
+
+name=Google Cloud SDK
+
+baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el7-x86_64
+
+enabled=1
+
+gpgcheck=1
+
+repo_gpgcheck=1
+
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+
+https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+EOF
+
+ 
+
+yum install google-cloud-sdk -y
+
+ 
+
+gcloud auth login
+
+ 
+
+Go to the following link in your browser and get the code and paste:
+
+ 
+
+    https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=32555940559.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&scope=openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fappengine.admin+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcompute+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Faccounts.reauth&state=rRDCGqLKy87h8USqTADndnoLVzRYpN&code_challenge=vDmStGGPY_pU-AIFiEx2U4rzcWMzGyB6zBmhcJJ7RrE&prompt=consent&code_challenge_method=S256&access_type=offline
+
+ 
+
+Enter verification code:
+
+ 
+
+4- Get the kubernetes config file from google and put it in jenkins's home directory.
+
+$mkdir .kube
+
+$cd .kube
+
+$ cp config file
+
+ 
+
+5- connect your jenkins server with your kubernetes account. ( replace evrything bold with your account info)
+
+ 
+
+ gcloud container clusters get-credentials cluster-name  --zone us-east1-b --project projectID
+
+ 
+
+6- Run kubectl command as user jenkins
+
+Kubectl get nodes
+
+ 
+
+ Include the deployment file in your project and service file and then you can add the kubectl command as build steps for the deployment.
