@@ -1,0 +1,42 @@
+Integrate jenkins project with Google Container Registry (GCR)
+
+jenkins pull the code from the registry, and build a docker image and push that to GCR. 
+
+
+Prerequisite:
+
+A Server with :
+Jenkins and Docker-ce installed and configured:
+Git installed and Set up path on server and Jenkins Console
+
+
+Configure Google Cloud Plateform
+- Create a project and select that. 
+Open IAM & admin in GCP and create Service Account and add Storage Admin Role then create a JSON key.
+With this credentials, jenkins can access GCR. 
+To use container registry service for this project, enable his “API” in the google cloud shell 
+with the command: gcloud services enable containerregistry.googleapis.com 
+
+
+Configure jenkins Console
+- As plugins, 
+”Cloudbees Docker Build and Publish plugin”
+“Git plugin”
+“Google Oauth Credentials plugin”   to surface Google Service Account credentials to Jenkins.
+“Google Container Registry Auth plugin”  for authenticating with Google Container Registry as a service account.
+
+
+Now , give access to jenkins to GCR. 
+In manage credentials, add the credentials. In kind, choose Google Service Account from private key
+Then provide the name of the job and the key created with the service account. 
+
+
+ Finally, create a freestyle job
+ 
+ Give to jenkins the git URL of the code; precise the branch to build; set up Poll SCM 
+In add post build, click on docker build and publish to give jenkins login information and
+also tag repository.(repository name: Hostname(gcr.io)/projectID/choiceimagename)
+Since  registry is not docker registry anymore, give the URL of the registry that will host the docker image. 
+Jenkins will know where to push it.
+
+If I create a maven project; I add the goals: clean install package in the job.
