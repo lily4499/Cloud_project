@@ -1,70 +1,47 @@
-ON EC2 instance; 
+Many tools can be used in companies for AWS as a code: ansible, terraform, cloud formation
 
-Install ansible
-  sudo -i
-  yum update
-  yum install ansible
-  cd /etc/ansible the type ansible --version to check installation
-  
-  
-Configure Ansible to access the target servers
-  vim hosts
-    [web]
-    172.17.0.5
-    [dbserver]
-    172.17.0.3
-  ansible web -m ping
-  ansible dbserver -m ping
-  if we get permission denied, Configure ansible user with his password
-  Then give his credentials to the target server
-  vim hosts
-    [web]
-    Target 1 ansible_host=172.17.0.5 ansible_ssh_user=root ansible_ssh_pass=************
-    [dbserver]
-    Target 2 ansible_host=172.17.0.3 ansible_ssh_user=root ansible_ssh_pass=************
-  ansible all -m ping
-  
-  ansible all -m shell -a "cat /etc/*release"
-  
-  
-  
-  Write playbooks in YAML format
+
+
+prerequisite:
+ A jenkins server up and running
+ An ansible server up and running with python and boto installed
+    apt install ansible python-pip
+    pip install boto
+ AWS console: create a user with a programmatic access in the IAM service
+
+
+
+ cd /etc/ansible
+ 
+ vim ansible.cfg   to uncomment host_key_checking = False
+ 
+ vim hosts
+    localhost
+    
+  vim file_name.yml
   
   ---
-  - name: update web servers
-    hosts: web
-    remote user: root
-    
+  - host: localhost
+    connection: local
     tasks:
-    - name: ensure apache is at the latest version
-      yum:
-        name: httpd
-        state: latest
-    - name: write tha apache config file
-      template:
-        src: /srv/httpd.J2
-        dest: /etc/httpd.conf
-        
- - name: update db server
-   hosts: dbserver
-   remote_user: root
-   
-   tasks:
-   - name: ensure postgresql is at the latest version
-     yum:
-       name: postgresql
-       state: latest
-   - name: ensure that postgresql is started
-     service:
-        name: postgrasql
-        state: started
-      
-      
-      
-   Run playbook
-      ansible-playbook file_name.yml  --syntax
- 
-      
-    
+      - name: create an EC2 instance
+      ec2:
+        key_name: your_pem_key_nqme
+        instance_type: t2.micro
+        image: ami-09876tgghhjui
+        wait: yes
+        count: 1
+        group: name_security_group
+        vpc_subnet_id: subnet-45fggh
+        assign_public_ip: yes
+        region: us-east-1
+        instance_tags:
+          name: server_name
+        aws_access_key: 
+        aws_secret_key:
+  in order for ansible to access AWS, give access key and secret key of the user in the playbook
+  
+  Run the playbook
   
   
+  HOW TO USE JENKINS TO ACCESS ANSIBLE SERVER AND USE PLAYBOOK TO LAUNCH INSTANCES
