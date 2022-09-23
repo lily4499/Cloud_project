@@ -1,0 +1,257 @@
+#Configure the user and region
+
+provider "aws" {
+  region     = "us-east-1"
+  access_key = ""
+  secret_key = ""
+}
+
+#data "aws_availability_zones" "available" {}
+
+#Create a VPC
+#Subnets
+#Internet Gateway 
+#Routing Table with a route pointing to the internet gateway for Public subnets 
+
+resource "aws_vpc" "myVPC" {
+  cidr_block = "10.0.0.0/16"
+}
+
+resource "aws_internet_gateway" "myGTW" {
+  vpc_id = aws_vpc.myVPC.id
+}
+
+resource "aws_route_table" "myRouteTable_A" {
+  vpc_id = aws_vpc.myVPC.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.myGTW.id
+  }
+
+}
+
+resource "aws_route_table" "myRouteTable_B" {
+  vpc_id = aws_vpc.myVPC.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.myGTW.id
+  }
+
+}
+
+resource "aws_subnet" "mySubnetPublic_A" {
+  vpc_id     = aws_vpc.myVPC.id
+  cidr_block = "10.0.1.0/24"
+  availability_zone = "us-east-1a"
+
+}
+
+resource "aws_subnet" "mySubnetPublic_B" {
+  vpc_id     = aws_vpc.myVPC.id
+  cidr_block = "10.0.7.0/24"
+  availability_zone = "us-east-1b"
+
+}
+
+#Associate the subnets to the route table
+
+resource "aws_route_table_association" "a" {
+  subnet_id      = aws_subnet.mySubnetPublic_A.id
+  route_table_id = aws_route_table.myRouteTable_A.id
+}
+resource "aws_route_table_association" "b" {
+  subnet_id    = aws_subnet.mySubnetPublic_B.id
+  route_table_id = aws_route_table.myRouteTable_B.id
+}
+
+#Create Security Group
+
+resource "aws_security_group" "mySG" {
+  name        = "mySG"
+  description = "Allow web inbound traffic"
+  vpc_id      = aws_vpc.myVPC.id
+
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+#Network interface for the subnets 
+
+resource "aws_network_interface" "web-server1-nic" {
+  subnet_id       = aws_subnet.mySubnetPublic_A.id
+  private_ips     = ["10.0.1.50"]
+  security_groups = [aws_security_group.mySG.id]
+
+}
+
+resource "aws_network_interface" "web-server2-nic" {
+  subnet_id       = aws_subnet.mySubnetPublic_B.id
+  private_ips     = ["10.0.7.50"]
+  security_groups = [aws_security_group.mySG.id]
+
+}
+
+resource "aws_eip" "one" {
+
+  vpc                       = true
+  network_interface         = aws_network_interface.web-server1-nic.id
+  associate_with_private_ip = "10.0.1.50"
+  depends_on                = [aws_internet_gateway.myGTW]
+}
+
+resource "aws_eip" "two" {
+
+  vpc                       = true
+  network_interface         = aws_network_interface.web-server2-nic.id
+  associate_with_private_ip = "10.0.7.50"
+  depends_on                = [aws_internet_gateway.myGTW]
+}
+
+#Create an Elastic Load balancer
+
+#Create the subnet variable
+
+resource "aws_lb_target_group" "myTG" {
+  name     = "myTG"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.myVPC.id
+}
+
+resource "aws_lb" "myELB" {
+  name               = "myELB"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.mySG.id]
+
+  enable_deletion_protection = true
+
+subnet_mapping {
+    subnet_id     = "${aws_subnet.mySubnetPublic_A.id}"
+    #allocation_id = aws_eip.example1.id
+  }
+
+  subnet_mapping {
+    subnet_id     = "${aws_subnet.mySubnetPublic_B.id}"
+    #allocation_id = aws_eip.example2.id
+  }
+
+access_logs {
+    bucket        = "s3bucketpaula"
+    #bucket_prefix = "Logs"
+    #interval      = 60
+  }
+
+}
+
+resource "aws_s3_bucket" "s3bucketpaula" {
+  bucket = "s3bucketpaula"
+  acl = "private"
+
+  policy = <<POLICY
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::374520413104:root"
+            },
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::s3bucketpaula/Logs/AWSLogs/374520413104/*"
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "delivery.logs.amazonaws.com"
+            },
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::s3bucketpaula/Logs/AWSLogs/374520413104/*",
+            "Condition": {
+                "StringEquals": {
+                    "s3:x-amz-acl": "bucket-owner-full-control"
+                }
+            }
+        },
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "delivery.logs.amazonaws.com"
+            },
+            "Action": "s3:GetBucketAcl",
+            "Resource": "arn:aws:s3:::s3bucketpaula"
+        }
+    
+    ]
+}
+POLICY
+}
+
+resource "aws_instance" "myWB_A" {
+  ami           = "ami-047a51fa27710816e"
+  instance_type = "t2.micro"
+  availability_zone = "us-east-1a"
+  key_name = "awskeypair"
+  #vpc_security_group_ids = [ "mySG.id" ]
+
+network_interface {
+    network_interface_id = aws_network_interface.web-server1-nic.id
+    device_index         = 0
+  }
+
+user_data = <<-EOF
+              #!/bin/bash
+              yum install httpd -y
+              echo “<h1><b>Welcome to my World. Please follow along as I learn how to use AWS both on the console and the automated process with Cloudformation.<b></h1>” > /var/www/html/index.html
+              systemctl start httpd
+              systemctl enable httpd 
+              chkconfig on 
+              EOF
+
+}
+ 
+              
+resource "aws_instance" "myWB_B" {
+  ami           = "ami-047a51fa27710816e"
+  instance_type = "t2.micro"
+  availability_zone = "us-east-1b"
+  key_name = "awskeypair"
+  #vpc_security_group_ids = [ "mySG.id" ]
+  
+network_interface {
+    network_interface_id = aws_network_interface.web-server2-nic.id
+    device_index         = 0
+  }
+
+user_data = <<-EOF
+              #!/bin/bash
+              yum install httpd -y
+              echo “<h1><b>Welcome to my World. Please follow along as I learn how to use AWS both on the console and the automated process with Terraform.<b></h1>” > /var/www/html/index.html
+              systemctl start httpd
+              systemctl enable httpd 
+              chkconfig on 
+              EOF
+
+}
