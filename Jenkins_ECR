@@ -1,0 +1,44 @@
+Integrate jenkins project with Amazon Elastic Container Registry (ECR)
+
+Developers push the code to the registry. 
+Jenkins pull that code from the registry, use Dockerfile to build a docker image and push to ECR. 
+
+Prerequisite:
+
+A Server with :
+  Jenkins and Docker-ce installed 
+  Git installed and setup path
+AWS console
+Jenkins Console
+
+
+
+Configure AWS console
+- Create a new repository name in ECR, 
+  Create an additional user in IAM and Attach the AmazonEC2ContainerRegistryFullAccess policy 
+
+Configure server jenkins
+- Install “awscli” to configure credentials of AWS and the user. 
+Then enable jenkins to access AWS by using the command given by AWS ECR  for the new repository in “push Command”.
+
+Configure jenkins Console
+- As plugins, 
+”Cloudbees Docker Build and Publish ”to enables building Dockerfile based projects
+“Git plugin”to integrate git with jenkins.
+“Jenkins Amazon ECR plugin “ to  generates Docker authentication token from Amazon Credentials to access Amazon ECR.
+“CloudBees AWS Credentials” to Store Amazon IAM access keys within the Jenkins Credentials API
+
+
+
+Now , give access to jenkins to ECR. 
+In manage credentials, add the credentials. In kind, choose AWS Credentials. Then provide the credentials of the user created. 
+
+ Finally, create a freestyle job
+ Give to jenkins the git URL of the code; precise the branch to build; Poll SCM to check whether changes were made 
+ 
+In add post build, click on docker build and publish to give jenkins login information and also tag repository.
+Since registry is not docker registry anymore,  give the URL of the registry that will host the docker image. 
+Then Jenkins will know where to push it.
+
+
+
