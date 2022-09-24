@@ -1,0 +1,93 @@
+Setup Jenkins to create EC2 instances and S3 bucket using Ansible playbook
+
+In jenkins, we need to use a plugin publish over ssh to log in to ansible server and kick off a playbook
+
+Prerequisite:
+
+- Jenkins server up and running
+- Ansible server up and running with python and boto installed
+- AWS credentials of an user
+
+  
+if server ansible in AWS, it uses key authentification to log in, we need to enable password authentication in the sshd_config file
+  vim /etc/ssh/sshd_config
+  service sshd restart
+  
+  
+  Configure ansible server to receive traffic from the outside
+    In security group ; for inbound rule, allow traffic from everywhere (0.0.0.0/0)
+  
+  
+ Create an ansible user in his home directory
+    useradd user_ansible -d /home/ansible -s /bin/bash -m     => ubuntu server
+    passwd user_ansible
+    pwd   => /home/user_ansible
+    touch .boto
+    vim .boto
+    [credentials]
+    aws_access_key: iiomjhhgfghjkl
+    aws_secret_key: dhhhhhhhhhhhhkwkks
+    
+  Login to the ansible server as user ansible
+    ssh user_ansible@IP_server_ansible
+    
+  Configure Jenkins:
+    install plugin SSH that allows jenkins to login to a node or server using ssh connection
+    Give to jenkins, user_ansible credentials
+    Set up SSH sites
+    
+    
+ Create a jenkins job that will log in to ansible server and run playbook to launch instances in AWS
+    freestyle project
+    Add build step: Execute shell script on remote host using ssh
+    SSH site: user_ansible@IP_address:port(22)
+    Command: ansible-playbook /etc/ansible/file_name.yml
+    
+    
+Build with parameters
+    vim file_name.yml
+        ec2:
+            key_name: "{{KEYNAME}}"
+            instance_type: "{{INSTANCE_TYPE}}"
+            image: "{{IMAGE}}"
+            group: "{{SG_GROUP}}"
+            count: "{{COUNT}}"
+            region: "{{REGION}}"
+            instance_tags:
+                name: "{{TAG}}"
+                
+in script on jenkins job;
+    Command: ansible-playbook file_name.yml -e "KEYNAME=your_keyname IMAGE=ami-55tfff COUNT=4 SG_GROUP=group_name INSTANCE_TYPE=t2.micro TAG=ans-var REGION=US-east-1
+    
+Configure building parameters in jenkins
+    Choose this project is parameterized
+        Add parameter
+        Choice parameter
+            name: KEYNAME
+            choices:
+                choice1
+                choice2
+             Description: aws key pair name
+             
+        Add parameter
+        String parameter
+            Name: TAG
+            Default value: dev-instance-data
+            Description: instance name
+            
+ 
+in script on jenkins job;
+    Command: ansible-playbook file_name.yml -e "KEYNAME=$KEYNAME IMAGE=$IMAGE COUNT=$COUNT SG_GROUP=$SG_GROUP INSTANCE_TYPE=$INSTANCE_TYPE TAG=$TAG REGION=$REGION
+    
+Click on Build with parameter and provide the values for the parameters to build job
+
+
+
+
+S3 bucket and RDS  are the next.
+            
+ 
+ 
+    
+
+
