@@ -3,11 +3,18 @@ Many tools can be used in companies for AWS as a code: ansible, terraform, cloud
 
 
 prerequisite:
- A jenkins server up and running
+
  An ansible server up and running with python and boto installed
     apt install ansible python-pip
     pip install boto
  AWS console: create a user with a programmatic access in the IAM service
+   in order for ansible to access AWS, give access key and secret key of the user in .boto file
+   cd
+   touch .boto
+   vim .boto
+     [credentials]
+     aws_access_key: 
+     aws_secret_key:
 
 
 
@@ -37,11 +44,10 @@ prerequisite:
         region: us-east-1
         instance_tags:
           name: server_name
-        aws_access_key: 
-        aws_secret_key:
-  in order for ansible to access AWS, give access key and secret key of the user in the playbook
+
+
   
   Run the playbook
   
   
-  HOW TO USE JENKINS TO ACCESS ANSIBLE SERVER AND USE PLAYBOOK TO LAUNCH INSTANCES
+  HOW TO USE JENKINS TO ACCESS ANSIBLE SERVER AND USE PLAYBOOK TO LAUNCH INSTANCES ?
