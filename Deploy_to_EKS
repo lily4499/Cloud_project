@@ -7,7 +7,7 @@
 
     AWS console:
     - create a new repository name in ECR
-    - create an additional user in IAM 
+    - create an additional user jenkins in IAM 
     and Attach the AmazonEC2ContainerRegistryFullAccess policy: 
     then save user access keys.
      
@@ -72,18 +72,46 @@
     /latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
     sudo mv /tmp/eksctl /usr/local/bin
     eksctl version
--
+    
+- Switch to user jenkins
         sudo su — jenkins
-        aws eks update-kubeconfig — name cluster name
+	
+  -  Create EKS Cluster with two worker nodes using eksctl
+eksctl create cluster --name cluster_name --region us-east-2 --nodegroup-name my-nodes --node-type t3.small --managed --nodes 2 
+ 
+ - Confirm EKS cluster is up and running.
+ eksctl get cluster --name cluster_name --region us-east-2 
+ 
+ -  Update Kube config by entering below command:
 
-    - Create eks cluster using eksctl
-    - Verify the EKS kubernetes cluster from AWS
+aws eks update-kubeconfig --name cluster_name --region us-east-2
 
-    kubectl get nodes
+you can view the kubeconfig file by entering the below command:
+
+cat  /var/lib/jenkins/.kube/config
+
+-  Connect to EKS cluster using kubectl commands
+
+kubectl get nodes
+
+kubectl get ns
 
 
+ -  Deploy Nginx on a Kubernetes Cluster
+
+kubectl create deployment nginx --image=nginx
 in shell script , run:
   kubectl apply -f name_deployment.yml
+
+kubectl get deployments
+
+-  Delete EKS Cluster using eksctl
+
+eksctl delete cluster --name demo-eks --region us-east-2
+
+
+
+
     
     
     
