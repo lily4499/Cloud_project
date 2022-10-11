@@ -7,7 +7,7 @@
 
     AWS console:
     - create a new repository name in ECR
-    - create an additional user jenkins in IAM 
+    - create an additional user in IAM 
     and Attach the AmazonEC2ContainerRegistryFullAccess policy: 
     then save user access keys.
      
